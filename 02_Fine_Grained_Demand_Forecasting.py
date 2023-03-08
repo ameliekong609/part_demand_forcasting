@@ -25,8 +25,11 @@
 
 # COMMAND ----------
 
+
+
+cloud_storage_path= "/FileStore/tables/demand_forecasting_solution_accelerator/"
 print(cloud_storage_path)
-print(dbName)
+ 
 
 # COMMAND ----------
 
@@ -69,7 +72,7 @@ from pyspark.sql.types import *
 
 # COMMAND ----------
 
-demand_df = spark.read.table(f"{dbName}.part_level_demand")
+demand_df = spark.table("demand_db.demand_df_delta")
 demand_df = demand_df.cache() # just for this example notebook
 
 # COMMAND ----------
@@ -100,6 +103,10 @@ forecast_horizon = 40
 is_history = [True] * (len(series_df) - forecast_horizon) + [False] * forecast_horizon
 train = series_df.iloc[is_history]
 score = series_df.iloc[~np.array(is_history)]
+
+# COMMAND ----------
+
+len(series_df)
 
 # COMMAND ----------
 
@@ -532,6 +539,10 @@ forecast_df_delta_path = os.path.join(cloud_storage_path, 'forecast_df_delta')
 
 # COMMAND ----------
 
+forecast_df_delta_path
+
+# COMMAND ----------
+
 # Write the data 
 forecast_df.write \
 .mode("overwrite") \
@@ -540,9 +551,18 @@ forecast_df.write \
 
 # COMMAND ----------
 
-spark.sql(f"DROP TABLE IF EXISTS {dbName}.part_level_demand_with_forecasts")
-spark.sql(f"CREATE TABLE {dbName}.part_level_demand_with_forecasts USING DELTA LOCATION '{forecast_df_delta_path}'")
+spark.sql('''
+  CREATE TABLE demand_db.forecast_df_delta 
+  USING DELTA 
+  LOCATION '/FileStore/tables/demand_forecasting_solution_accelerator/forecast_df_delta'
+  ''')
+ 
 
 # COMMAND ----------
 
-display(spark.sql(f"SELECT * FROM {dbName}.part_level_demand_with_forecasts"))
+# MAGIC %sql
+# MAGIC select * from demand_db.forecast_df_delta 
+
+# COMMAND ----------
+
+

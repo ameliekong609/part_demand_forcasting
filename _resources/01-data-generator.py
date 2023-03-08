@@ -56,7 +56,7 @@ from pyspark.sql.types import StructType,StructField, StringType, DateType
 #################################################
 n=10 # Number of SKU's per product
 ts_length_in_years = 3 # Length of a time series in years
-corona_breakpoint = datetime.date(year=2020, month=3, day=1) # date information: at which date do Corona effects come into play
+corona_breakpoint = datetime.date(year=2023, month=3, day=8) # date information: at which date do Corona effects come into play
 percentage_decrease_corona_from = 20 # date information: define the decline after Corona comes into play
 percentage_decrease_corona_to = 7 # date information: define the decline after Corona comes into play
 trend_factor_before_corona = 100 # date information: trend before Corona
@@ -352,16 +352,33 @@ demand_df.write \
 
 # COMMAND ----------
 
-spark.sql(f"DROP TABLE IF EXISTS {dbName}.part_level_demand")
-spark.sql(f"CREATE TABLE {dbName}.part_level_demand USING DELTA LOCATION '{demand_df_delta_path}'")
+demand_df_delta_path
 
 # COMMAND ----------
 
-display(spark.sql(f"SELECT * FROM {dbName}.part_level_demand"))
+_ = spark.sql('DROP DATABASE IF EXISTS demand_db CASCADE')
+_ = spark.sql('CREATE DATABASE demand_db')
+
 
 # COMMAND ----------
 
-display(spark.sql(f"SELECT COUNT(*) as row_count FROM {dbName}.part_level_demand"))
+# create table object to make delta lake queryable
+spark.sql('''
+  CREATE TABLE demand_db.demand_df_delta 
+  USING DELTA 
+  LOCATION '/FileStore/tables/demand_forecasting_solution_accelerator/demand_df_delta'
+  ''')
+
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC select * from demand_db.demand_df_delta
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC SELECT COUNT(*) as row_count FROM demand_db.demand_df_delta
 
 # COMMAND ----------
 
@@ -448,7 +465,7 @@ random_mat_numbers = generate_random_strings(1000000)
 # COMMAND ----------
 
 #Create a listof all SKU's
-demand_df = spark.read.table(f"{dbName}.part_level_demand")
+demand_df = spark.table("demand_db.demand_df_delta")
 all_skus = demand_df.select('SKU').distinct().rdd.flatMap(lambda x: x).collect()
 
 # COMMAND ----------
@@ -517,8 +534,18 @@ bom_df.write \
 
 # COMMAND ----------
 
-spark.sql(f"DROP TABLE IF EXISTS {dbName}.bom")
-spark.sql(f"CREATE TABLE {dbName}.bom USING DELTA LOCATION '{bom_df_delta_path}'")
+bom_df_delta_path
+
+# COMMAND ----------
+
+# create table object to make delta lake queryable
+spark.sql('''
+  CREATE TABLE demand_db.bom_df_delta 
+  USING DELTA 
+  LOCATION '/FileStore/tables/demand_forecasting_solution_accelerator/bom_df_delta'
+  ''')
+
+ 
 
 # COMMAND ----------
 
@@ -533,16 +560,22 @@ final_mat_number_to_sku_mapper_df.write \
 
 # COMMAND ----------
 
-spark.sql(f"DROP TABLE IF EXISTS {dbName}.sku_mapper")
-spark.sql(f"CREATE TABLE {dbName}.sku_mapper USING DELTA LOCATION '{final_mat_number_to_sku_mapper_df_path}'")
+spark.sql('''
+  CREATE TABLE demand_db.sku_mapper_df_delta 
+  USING DELTA 
+  LOCATION '/FileStore/tables/demand_forecasting_solution_accelerator/sku_mapper_df_delta'
+  ''') 
+
 
 # COMMAND ----------
 
-display(spark.sql(f"select * from {dbName}.sku_mapper"))
+# MAGIC %sql 
+# MAGIC select * from demand_db.sku_mapper_df_delta
 
 # COMMAND ----------
 
-display(spark.sql(f"select * from {dbName}.bom"))
+# MAGIC %sql 
+# MAGIC select * from demand_db.bom_df_delta
 
 # COMMAND ----------
 
